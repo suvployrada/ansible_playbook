@@ -1,0 +1,42 @@
+# - name: Copy SQL files
+#    win_copy: 
+#      src: "../templates/1.2-single-function-member-servers-used-checked.sql"
+#      dest: "C:\\1.2-single-function-member-servers-used-checked.sql"
+#    register: db_sql_copyfile_state
+#  - name: Task1.2
+#    win_command: "sqlcmd -S {{ db_server | default(ansible_hostname, true) }} 
+#    -i {{ db_artifact_dest_dir }}\\1.2-single-function-member-servers-used-checked.sql"
+#    register: sql_command
+
+- name: 1.2 Ensure Single-Function Member Servers are Used   
+  win_shell: "invoke-sqlcmd -ServerInstance {{ ansible_hostname }} -Query \"\" | Select-Object * -ExcludeProperty ItemArray, Table, RowError, RowState, HasErrors | ConvertTo-Json"
+  register: single_function_member_servers_used_checked
+
+- set_fact:
+    ids: "{{ single_function_member_servers_used_checked.stdout|from_json}}"
+- debug:
+        var: ansible_hostname
+- debug:
+        var: ids
+# - debug:
+#         var: ids.Version
+# - debug:
+#         var: ids.SP_installed
+# - name: Check Condition
+#   set_fact:
+#     resultCheckVersion: "{{ ids.Version >= '13.0.7016.1' }}"
+# - debug:
+#         var: resultCheckVersion
+- debug:
+        var: ansible_ip_addresses[0]
+- name: Modules Write log file
+  import_tasks: ../../../../modules/logs.yml
+  vars:
+    timestamp: "{{ ansible_date_time.iso8601 }}"
+    destination_ip: "{{ ansible_ip_addresses[0] }}"
+    playbook_type: "{{ PLAYBOOK_NAME }}"
+    section_control_hardening: "Secure Boot Settings"
+    task_number_control_hardening: "1.2"
+    task_control_hardening: "Ensure Single-Function Member Servers are Used"
+    # result_flag: "{{ resultCheckVersion }}"
+    remark: "no check command"

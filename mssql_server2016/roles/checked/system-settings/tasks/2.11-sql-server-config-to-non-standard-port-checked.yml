@@ -1,0 +1,49 @@
+# - name: Copy SQL files
+#    win_copy: 
+#      src: "../templates/2.11-sql-server-config-to-non-standard-port-checked.sql"
+#      dest: "C:\\2.11-sql-server-config-to-non-standard-port-checked.sql"
+#    register: db_sql_copyfile_state
+#  - name: Task1
+#    win_command: "sqlcmd -S {{ db_server | default(ansible_hostname, true) }} 
+#    -i {{ db_artifact_dest_dir }}\\2.11-sql-server-config-to-non-standard-port-checked.sql"
+#    register: sql_command
+
+- name: 2.11 Ensure SQL Server is configured to use non-standard ports   
+  win_shell: "invoke-sqlcmd -ServerInstance {{ ansible_hostname }} -Query \"DECLARE @value nvarchar(256);
+  EXECUTE master.dbo.xp_instance_regread
+    N'HKEY_LOCAL_MACHINE',
+    N'SOFTWARE\Microsoft\Microsoft SQL Server\MSSQLServer\SuperSocketNetLib\Tcp\IPAll',
+    N'TcpPort',
+    @value OUTPUT,
+    N'no_output';
+  SELECT @value AS TCP_Port WHERE @value = '1433';\" | Select-Object * -ExcludeProperty ItemArray, Table, RowError, RowState, HasErrors | ConvertTo-Json "
+  register: unnecessary_sql_protocals_set_disabled_checked
+
+- set_fact:
+    ids: "{{ unnecessary_sql_protocals_set_disabled_checked.stdout|from_json}}"
+- debug:
+        var: ansible_hostname
+- debug:
+        var: ids
+# - debug:
+#         var: ids.value_configured
+# - debug:
+#         var: ids.SP_installed
+- name: Check Condition
+  set_fact:
+    resultCheck: "{{ ids = null }}"
+- debug:
+        var: resultCheck
+- debug:
+        var: ansible_ip_addresses[0]
+- name: Modules Write log file
+  import_tasks: ../../../../modules/logs.yml
+  vars:
+    timestamp: "{{ ansible_date_time.iso8601 }}"
+    destination_ip: "{{ ansible_ip_addresses[0] }}"
+    playbook_type: "{{ PLAYBOOK_NAME }}"
+    section_control_hardening: "Secure Boot Settings"
+    task_number_control_hardening: "2.11"
+    task_control_hardening: "Ensure SQL Server is configured to use non-standard ports"
+    result_flag: "{{ resultCheck }}"
+    remark: ""
